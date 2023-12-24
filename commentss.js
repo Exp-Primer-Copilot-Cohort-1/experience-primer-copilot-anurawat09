@@ -1,55 +1,62 @@
-//create a web server
-var express = require('express');
-var app = express();
-var bodyParser = require('body-parser');
-var mongoose = require('mongoose');
-var db = mongoose.connect('mongodb://localhost/comments');
-var Comment = require('./model/commentssModel');
-var port = process.env.PORT || 3000;
+//create web server 
+var http = require('http');
+var url = require('url');
+var fs = require('fs');
+var querystring = require('querystring');
 
-app.use(bodyParser.urlencoded({extended:true}));
-app.use(bodyParser.json());
-
-var commentRouter = express.Router();
-
-commentRouter.route('/Comments')
-    .post(function(req,res){
-        var comment = new Comment(req.body);
-        comment.save();
-        res.status(201).send(comment);
-    })
-    .get(function(req,res){
-
-        var query = {};
-
-        if(req.query.name)
-        {
-            query.name = req.query.name;
+//create server
+http.createServer(function (req, res) {
+    var q = url.parse(req.url, true);
+    var filename = "." + q.pathname;
+    console.log(q.pathname);
+    if (q.pathname == "/") {
+        filename = "./index.html";
+    }
+    fs.readFile(filename, function (err, data) {
+        if (err) {
+            res.writeHead(404, { 'Content-Type': 'text/html' });
+            return res.end("404 Not Found");
         }
-        Comment.find(query,function(err,comments){
-            if(err)
-                res.status(500).send(err);
-            else
-                res.json(comments);
-        });
+
+        res.writeHead(200, { 'Content-Type': 'text/html' });
+        res.write(data);
+        return res.end();
     });
 
-commentRouter.route('/Comments/:commentId')
-    .get(function(req,res){
-
-        Comment.findById(req.params.commentId,function(err,comment){
-            if(err)
-                res.status(500).send(err);
-            else
-                res.json(comment);
+    //write to file 
+    if (q.pathname == "/comment") {
+        var body = "";
+        req.on("data", function (chunk) {
+            body += chunk;
         });
-    });
-app.use('/api',commentRouter);
-
-app.get('/',function(req,res){
-    res.send('welcome to my API');
-});
-
-app.listen(port,function(){
-    console.log('Gulp is running my app on PORT: ' + port);
-});
+        req.on("end", function () {
+            var obj = querystring.parse(body);
+            var comment = obj["comment"];
+            var name = obj["name"];
+            var email = obj["email"];
+            var date = new Date();
+            var time = date.toLocaleString();
+            var data = {
+                "name": name,
+                "email": email,
+                "comment": comment,
+                "time": time
+            };
+            fs.readFile("data.json", function (err, data) {
+                if (err) {
+                    console.log(err);
+                    return;
+                }
+                var json = JSON.parse(data);
+                json.push(data);
+                fs.writeFile("data.json", JSON.stringify(json), function (err) {
+                    if (err) {
+                        console.log(err);
+                        return;
+                    }
+                    console.log("Saved");
+                });
+            });
+        });
+    }
+}).listen(8080);
