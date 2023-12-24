@@ -30,6 +30,13 @@ http.createServer(function (req, res) {
             body += chunk;
         });
         req.on("end", function () {
+            var commentData = {
+                "name": name,
+                "email": email,
+                "comment": comment,
+                "time": time
+            };
+            
             var obj = querystring.parse(body);
             var comment = obj["comment"];
             var name = obj["name"];
@@ -48,7 +55,8 @@ http.createServer(function (req, res) {
                     return;
                 }
                 var json = JSON.parse(data);
-                json.push(data);
+                  json.push(commentData); // Use the comment data instead of the entire data object
+
                 fs.writeFile("data.json", JSON.stringify(json), function (err) {
                     if (err) {
                         console.log(err);
